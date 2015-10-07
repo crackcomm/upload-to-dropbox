@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/stacktic/dropbox"
 )
@@ -52,7 +53,9 @@ func main() {
 	}
 
 	if *doMkdir {
-		if _, err := dbox.CreateFolder(*dirName); err != nil {
+		if _, err := dbox.CreateFolder(*dirName); err != nil && strings.Contains(err.Error(), "already exists") {
+			fmt.Printf("Folder %s already exists\n", *dirName)
+		} else if err != nil {
 			fmt.Printf("Error creating folder %s: %s\n", *dirName, err)
 			return
 		}
