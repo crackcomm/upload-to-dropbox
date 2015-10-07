@@ -19,14 +19,18 @@ var (
 	chunkSize = flag.Int("chunk-size", 64, "Upload chunk size in megabytes")
 )
 
+func printUsage() {
+	fmt.Println("upload-to-dropbox")
+	fmt.Println()
+	flag.PrintDefaults()
+}
+
 func main() {
 	flag.Parse()
 	setFromEnv()
 
-	if *appId == "" || *appSecret == "" || *dirName == "" || *fileName == "" {
-		fmt.Println("upload-to-dropbox")
-		fmt.Println()
-		flag.PrintDefaults()
+	if *appId == "" || *appSecret == "" {
+		printUsage()
 		return
 	}
 
@@ -40,6 +44,11 @@ func main() {
 		}
 	} else {
 		dbox.SetAccessToken(*appToken)
+	}
+
+	if *dirName == "" || *fileName == "" {
+		printUsage()
+		return
 	}
 
 	if *doMkdir {
