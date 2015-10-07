@@ -10,7 +10,7 @@ import (
 )
 
 var (
-	dirName   = flag.String("dir", "", "Directory name (required)")
+	dirName   = flag.String("dir", "", "Directory name (required, in env: DROPBOX_DIR)")
 	doMkdir   = flag.Bool("mkdir", false, "Create the directory")
 	fileName  = flag.String("filename", "", "File name to create (required)")
 	inputFile = flag.String("input", "", "Input file to upload create (stdin used by default)")
@@ -80,6 +80,9 @@ func main() {
 }
 
 func setFromEnv() {
+	if v := os.Getenv("DROPBOX_DIR"); *dirName == "" && v != "" {
+		*dirName = v
+	}
 	if v := os.Getenv("DROPBOX_APP_ID"); *appId == "" && v != "" {
 		*appId = v
 	}

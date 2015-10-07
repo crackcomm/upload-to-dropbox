@@ -15,6 +15,7 @@ cat main.go | upload-to-dropbox -dir mydir -filename my_prog_1.go
 ### Environment
 
 ```
+DROPBOX_DIR         - Dropbox Directory
 DROPBOX_APP_ID      - Dropbox Application Id
 DROPBOX_APP_SECRET  - Dropbox Application Secret
 DROPBOX_APP_TOKEN   - Dropbox Application Token
@@ -28,7 +29,7 @@ DROPBOX_APP_TOKEN   - Dropbox Application Token
   -filename string
         File name to create (required)
   -dir string
-        Directory name (required)
+        Directory name (required, in env: DROPBOX_DIR)
   -mkdir
         Create the directory
   -token string
