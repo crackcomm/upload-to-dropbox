@@ -43,7 +43,7 @@ DROPBOX_APP_TOKEN   - Dropbox Application Token
 
 ## Thanks
 
-Thanks to [github.com/stacktic/dropbox](github.com/stacktic/dropbox).
+Thanks to [github.com/stacktic/dropbox](http://github.com/stacktic/dropbox).
 
 ## License
 
