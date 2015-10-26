@@ -3,9 +3,13 @@ package main
 import (
 	"flag"
 	"fmt"
+	"io"
+	"io/ioutil"
 	"os"
 	"strings"
 
+	"github.com/cheggaaa/pb"
+	"github.com/mitchellh/ioprogress"
 	"github.com/stacktic/dropbox"
 )
 
@@ -14,7 +18,7 @@ var (
 	doMkdir   = flag.Bool("mkdir", false, "Create the directory")
 	fileName  = flag.String("filename", "", "File name to create (required)")
 	inputFile = flag.String("input", "", "Input file to upload create (stdin used by default)")
-	appId     = flag.String("appId", "", "Dropbox App ID (required, in env: DROPBOX_APP_ID)")
+	appID     = flag.String("appID", "", "Dropbox App ID (required, in env: DROPBOX_APP_ID)")
 	appSecret = flag.String("appSecret", "", "Dropbox App Secret (required, in env: DROPBOX_APP_SECRET)")
 	appToken  = flag.String("token", "", "Dropbox App Token (in env: DROPBOX_APP_TOKEN)")
 	chunkSize = flag.Int("chunk-size", 64, "Upload chunk size in megabytes")
@@ -30,13 +34,12 @@ func main() {
 	flag.Parse()
 	setFromEnv()
 
-	if *appId == "" || *appSecret == "" {
-		printUsage()
-		return
+	if *appID == "" || *appSecret == "" {
+		fatalf("Application ID and Secret is required.")
 	}
 
 	dbox := dropbox.NewDropbox()
-	dbox.SetAppInfo(*appId, *appSecret)
+	dbox.SetAppInfo(*appID, *appSecret)
 
 	if *appToken == "" {
 		if err := dbox.Auth(); err != nil {
@@ -47,44 +50,76 @@ func main() {
 		dbox.SetAccessToken(*appToken)
 	}
 
-	if *dirName == "" || *fileName == "" {
-		printUsage()
+	if *fileName == "" && *inputFile == "" {
+		fmt.Println("Filename is required.")
+		os.Exit(1)
 		return
+	} else if *fileName == "" {
+		*fileName = *inputFile
 	}
 
-	if *doMkdir {
+	if *doMkdir && *dirName != "" {
 		if _, err := dbox.CreateFolder(*dirName); err != nil && strings.Contains(err.Error(), "already exists") {
 			fmt.Printf("Folder %s already exists\n", *dirName)
 		} else if err != nil {
-			fmt.Printf("Error creating folder %s: %s\n", *dirName, err)
-			return
+			fatalf("Error creating folder %s: %s", *dirName, err)
 		}
 		fmt.Printf("Folder %s successfully created\n", *dirName)
 	}
 
-	var err error
-	fname := fmt.Sprintf("%s/%s", *dirName, *fileName)
+	fname := strings.Trim(strings.Join([]string{*dirName, *fileName}, "/"), "/")
+	fmt.Printf("Uploading file %s => %s\n", *inputFile, fname)
+
+	var input io.ReadCloser
 	if *inputFile != "" {
-		_, err = dbox.UploadFile(*inputFile, fname, true, "")
+		// _, err = dbox.UploadFile(*inputFile, fname, true, "")
+		info, err := os.Stat(*inputFile)
+		if err != nil {
+			fatalf("%v", err)
+		}
+
+		file, err := os.Open(*inputFile)
+		if err != nil {
+			fatalf("Error opening file %q: %v", *inputFile, err)
+		}
+		defer file.Close()
+		bar := pb.StartNew(int(info.Size()))
+		bar.Units = pb.U_BYTES
+
+		input = ioutil.NopCloser(&ioprogress.Reader{
+			Reader: file,
+			Size:   info.Size(),
+			DrawFunc: func(progress int64, total int64) error {
+				bar.Set(int(progress))
+				if progress >= total {
+					bar.FinishPrint("Done")
+				}
+				return nil
+			},
+		})
 	} else {
-		_, err = dbox.UploadByChunk(os.Stdin, *chunkSize*1024, fname, false, "")
+		input = os.Stdin
 	}
 
+	_, err := dbox.UploadByChunk(input, *chunkSize*1024, fname, false, "")
 	if err != nil {
-		fmt.Printf("Error uploading file %s: %s\n", fname, err)
-		return
+		fatalf("Error uploading file %s: %v", fname, err)
 	}
 
 	fmt.Printf("File %s successfully created\n", fname)
+}
 
+func fatalf(format string, a ...interface{}) {
+	fmt.Printf(format+"\n", a...)
+	os.Exit(1)
 }
 
 func setFromEnv() {
 	if v := os.Getenv("DROPBOX_DIR"); *dirName == "" && v != "" {
 		*dirName = v
 	}
-	if v := os.Getenv("DROPBOX_APP_ID"); *appId == "" && v != "" {
-		*appId = v
+	if v := os.Getenv("DROPBOX_APP_ID"); *appID == "" && v != "" {
+		*appID = v
 	}
 	if v := os.Getenv("DROPBOX_APP_SECRET"); *appSecret == "" && v != "" {
 		*appSecret = v
